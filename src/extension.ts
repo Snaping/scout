@@ -30,9 +30,10 @@ export function activate(context: vscode.ExtensionContext) {
       return;
     }
 
+    const config = getConfig();
     const answer = await vscode.window.showWarningMessage(
       `确定要清理 ${currentResult.unusedRules.length} 条未使用规则吗？${
-        getConfig().enableBackup ? '将在清理前创建备份文件。' : '未启用备份功能，清理后不可恢复！'
+        config.enableBackup ? '将在清理前创建备份文件。' : '未启用备份功能，清理后不可恢复！'
       }`,
       { modal: true },
       '确定清理',
@@ -60,7 +61,7 @@ export function activate(context: vscode.ExtensionContext) {
   });
 
   const fixSelectedCommand = vscode.commands.registerCommand('styleScout.fixSelected', async (item: ScoutTreeItem) => {
-    if (!item.rule) {
+    if (!item || !item.rule) {
       return;
     }
 
@@ -78,7 +79,7 @@ export function activate(context: vscode.ExtensionContext) {
     const result = await fixer.fixSelected(item.rule);
 
     if (result.fixed) {
-      vscode.window.showInformationMessage(`已删除规则 "${item.rule.selector}"`);
+      vscode.window.showInformationMessage(`已删除规则 "${item.rule.selector}"${result.backup ? '（已备份）' : ''}`);
       await runScan();
     } else {
       vscode.window.showErrorMessage('删除规则失败');
@@ -86,20 +87,46 @@ export function activate(context: vscode.ExtensionContext) {
   });
 
   const goToRuleCommand = vscode.commands.registerCommand('styleScout.goToRule', async (rule: UnusedRule) => {
-    if (!rule) {
+    if (!rule || !rule.filePath) {
       return;
     }
 
     const doc = await vscode.workspace.openTextDocument(rule.filePath);
     const editor = await vscode.window.showTextDocument(doc);
 
-    const line = rule.line - 1;
+    const line = Math.max(0, rule.line - 1);
     const lineLength = doc.lineAt(line).text.length;
     editor.selection = new vscode.Selection(line, 0, line, lineLength);
     editor.revealRange(
       new vscode.Range(line, 0, line, lineLength),
       vscode.TextEditorRevealType.InCenter,
     );
+  });
+
+  const ignoreSelectorCommand = vscode.commands.registerCommand('styleScout.ignoreSelector', async (item: ScoutTreeItem) => {
+    if (!item || !item.rule) {
+      return;
+    }
+
+    const selector = item.rule.selector;
+    const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    const config = vscode.workspace.getConfiguration('styleScout');
+    const current = config.get<string[]>('ignorePatterns', []);
+
+    if (current.includes(escapedSelector)) {
+      vscode.window.showInformationMessage(`"${selector}" 已在忽略列表中`);
+      return;
+    }
+
+    current.push(escapedSelector);
+    await config.update('ignorePatterns', current, vscode.ConfigurationTarget.Workspace);
+    vscode.window.showInformationMessage(`已将 "${selector}" 添加到忽略规则`);
+    await runScan();
+  });
+
+  const openSettingsCommand = vscode.commands.registerCommand('styleScout.openSettings', () => {
+    vscode.commands.executeCommand('workbench.action.openSettings', 'styleScout');
   });
 
   context.subscriptions.push(
@@ -109,10 +136,17 @@ export function activate(context: vscode.ExtensionContext) {
     fixAllCommand,
     fixSelectedCommand,
     goToRuleCommand,
+    ignoreSelectorCommand,
+    openSettingsCommand,
   );
 
-  vscode.workspace.onDidSaveTextDocument(() => {
-    runScan();
+  // 文件保存时自动重扫描（仅限相关文件类型）
+  vscode.workspace.onDidSaveTextDocument((doc) => {
+    const ext = doc.fileName.split('.').pop()?.toLowerCase();
+    const relevantExts = ['css', 'scss', 'vue', 'jsx', 'tsx', 'js', 'ts', 'html', 'htm'];
+    if (ext && relevantExts.includes(ext)) {
+      runScan();
+    }
   });
 
   vscode.workspace.onDidChangeConfiguration((e) => {
@@ -120,6 +154,11 @@ export function activate(context: vscode.ExtensionContext) {
       runScan();
     }
   });
+
+  // 激活时自动扫描
+  if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
+    runScan();
+  }
 }
 
 async function runScan(): Promise<void> {
@@ -151,7 +190,7 @@ async function runScan(): Promise<void> {
           progress.report({ message });
         });
 
-        treeProvider.refresh(currentResult.unusedRules);
+        treeProvider.refresh(currentResult, config);
 
         if (currentResult.unusedRules.length === 0) {
           vscode.window.showInformationMessage(

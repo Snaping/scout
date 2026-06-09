@@ -28,23 +28,38 @@
     "commands": [
       {
         "command": "styleScout.scan",
-        "title": "Style Scout: 扫描未使用样式"
+        "title": "Style Scout: 扫描未使用样式",
+        "icon": "$(search)"
       },
       {
         "command": "styleScout.fixAll",
-        "title": "Style Scout: 一键清理所有未使用规则"
+        "title": "Style Scout: 一键清理所有未使用规则",
+        "icon": "$(trash)"
       },
       {
         "command": "styleScout.fixSelected",
-        "title": "Style Scout: 清理选中的未使用规则"
+        "title": "Style Scout: 清理选中的未使用规则",
+        "icon": "$(trash)"
       },
       {
         "command": "styleScout.refresh",
-        "title": "Style Scout: 刷新扫描结果"
+        "title": "Style Scout: 刷新扫描结果",
+        "icon": "$(refresh)"
       },
       {
         "command": "styleScout.goToRule",
-        "title": "Style Scout: 跳转到规则位置"
+        "title": "Style Scout: 跳转到规则位置",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "styleScout.ignoreSelector",
+        "title": "Style Scout: 忽略此选择器",
+        "icon": "$(eye-closed)"
+      },
+      {
+        "command": "styleScout.openSettings",
+        "title": "Style Scout: 打开设置",
+        "icon": "$(gear)"
       }
     ],
     "viewsContainers": {
@@ -66,16 +81,58 @@
       ]
     },
     "menus": {
+      "view/title": [
+        {
+          "command": "styleScout.scan",
+          "when": "view == styleScoutPanel",
+          "group": "navigation@1"
+        },
+        {
+          "command": "styleScout.fixAll",
+          "when": "view == styleScoutPanel",
+          "group": "navigation@2"
+        },
+        {
+          "command": "styleScout.refresh",
+          "when": "view == styleScoutPanel",
+          "group": "navigation@3"
+        },
+        {
+          "command": "styleScout.openSettings",
+          "when": "view == styleScoutPanel",
+          "group": "navigation@4"
+        }
+      ],
       "view/item/context": [
+        {
+          "command": "styleScout.goToRule",
+          "when": "view == styleScoutPanel && viewItem == rule",
+          "group": "inline@1"
+        },
         {
           "command": "styleScout.fixSelected",
           "when": "view == styleScoutPanel && viewItem == rule",
-          "group": "inline"
+          "group": "inline@2"
+        },
+        {
+          "command": "styleScout.ignoreSelector",
+          "when": "view == styleScoutPanel && viewItem == rule",
+          "group": "inline@3"
         },
         {
           "command": "styleScout.goToRule",
           "when": "view == styleScoutPanel && viewItem == rule",
-          "group": "inline"
+          "group": "1_navigation"
+        },
+        {
+          "command": "styleScout.fixSelected",
+          "when": "view == styleScoutPanel && viewItem == rule",
+          "group": "2_modification"
+        },
+        {
+          "command": "styleScout.ignoreSelector",
+          "when": "view == styleScoutPanel && viewItem == rule",
+          "group": "2_modification"
         }
       ]
     },

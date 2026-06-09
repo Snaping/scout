@@ -18,6 +18,17 @@ export interface ScanResult {
   unusedRules: UnusedRule[];
   scannedFiles: number;
   duration: number;
+  scannedDirectories: string[];
+  styleFiles: string[];
+  templateFiles: string[];
+  selectorUsageMap: SelectorUsageEntry[];
+}
+
+export interface SelectorUsageEntry {
+  selector: string;
+  definedIn: string;
+  line: number;
+  usedInFiles: string[];
 }
 
 export interface ClassUsageMap {

@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { SelectorInfo, ScanResult, UnusedRule } from './types';
+import { SelectorInfo, ScanResult, UnusedRule, SelectorUsageEntry } from './types';
 import { ClassCollection } from './classCollector';
 import { parseCSS, extractUsedNames } from './cssParser';
 import {
@@ -28,6 +28,8 @@ export class ProjectScanner {
   private globalAttributes: Set<string> = new Set();
   private globalTags: Set<string> = new Set();
   private globalDynamicClasses: Set<string> = new Set();
+  private classToFiles: Map<string, Set<string>> = new Map();
+  private idToFiles: Map<string, Set<string>> = new Map();
   private ignorePatterns: string[];
   private ignoreFiles: string[];
   private scanDirectories: string[];
@@ -53,6 +55,8 @@ export class ProjectScanner {
     this.globalAttributes = new Set();
     this.globalTags = new Set();
     this.globalDynamicClasses = new Set();
+    this.classToFiles = new Map();
+    this.idToFiles = new Map();
     this.scannedFiles = 0;
 
     const styleFiles: string[] = [];
@@ -90,6 +94,7 @@ export class ProjectScanner {
     }
 
     const unusedRules = this.detectUnused();
+    const selectorUsageMap = this.buildUsageMap();
 
     const duration = Date.now() - startTime;
     return {
@@ -98,6 +103,10 @@ export class ProjectScanner {
       unusedRules,
       scannedFiles: this.scannedFiles,
       duration,
+      scannedDirectories: dirsToScan,
+      styleFiles,
+      templateFiles,
+      selectorUsageMap,
     };
   }
 
@@ -157,8 +166,20 @@ export class ProjectScanner {
         return;
     }
 
-    result.classes.classes.forEach((c: string) => this.globalClasses.add(c));
-    result.classes.ids.forEach((id: string) => this.globalIds.add(id));
+    result.classes.classes.forEach((c: string) => {
+      this.globalClasses.add(c);
+      if (!this.classToFiles.has(c)) {
+        this.classToFiles.set(c, new Set());
+      }
+      this.classToFiles.get(c)!.add(filePath);
+    });
+    result.classes.ids.forEach((id: string) => {
+      this.globalIds.add(id);
+      if (!this.idToFiles.has(id)) {
+        this.idToFiles.set(id, new Set());
+      }
+      this.idToFiles.get(id)!.add(filePath);
+    });
     result.classes.attributes.forEach((attr: string) => this.globalAttributes.add(attr));
     result.classes.tags.forEach((tag: string) => this.globalTags.add(tag));
     result.classes.dynamicClasses.forEach((dc: string) => this.globalDynamicClasses.add(dc));
@@ -235,6 +256,44 @@ export class ProjectScanner {
     }
 
     return false;
+  }
+
+  private buildUsageMap(): SelectorUsageEntry[] {
+    const usageMap: SelectorUsageEntry[] = [];
+
+    for (const info of this.allSelectors) {
+      if (isSelectorIgnored(info.selector, this.ignorePatterns)) {
+        continue;
+      }
+
+      const { classes, ids } = extractUsedNames(info.selector);
+      const usedInFiles = new Set<string>();
+
+      for (const cls of classes) {
+        const files = this.classToFiles.get(cls);
+        if (files) {
+          files.forEach(f => usedInFiles.add(f));
+        }
+      }
+
+      for (const id of ids) {
+        const files = this.idToFiles.get(id);
+        if (files) {
+          files.forEach(f => usedInFiles.add(f));
+        }
+      }
+
+      if (usedInFiles.size > 0) {
+        usageMap.push({
+          selector: info.selector,
+          definedIn: info.filePath,
+          line: info.line,
+          usedInFiles: Array.from(usedInFiles),
+        });
+      }
+    }
+
+    return usageMap;
   }
 
   getAllSelectors(): SelectorInfo[] {
