@@ -6,7 +6,6 @@ export class StyleScoutProvider implements vscode.TreeDataProvider<ScoutTreeItem
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
   private unusedRules: UnusedRule[] = [];
-  private groupByFile: boolean = true;
 
   refresh(rules: UnusedRule[]): void {
     this.unusedRules = rules;
@@ -23,28 +22,35 @@ export class StyleScoutProvider implements vscode.TreeDataProvider<ScoutTreeItem
     }
 
     if (element.contextValue === 'file') {
-      return this.getRuleItems(element.label as string);
+      return this.getRuleItems(element.filePath!);
     }
 
     return [];
   }
 
   private getRootItems(): ScoutTreeItem[] {
+    // Empty state: show instructions when no scan has been run or no unused rules found
     if (this.unusedRules.length === 0) {
-      return [new ScoutTreeItem('未发现未使用样式 ✓', vscode.TreeItemCollapsibleState.None, 'empty')];
-    }
-
-    if (!this.groupByFile) {
-      return this.unusedRules.map(rule =>
+      return [
         new ScoutTreeItem(
-          rule.selector,
+          '未发现未使用样式 ✓',
           vscode.TreeItemCollapsibleState.None,
-          'rule',
-          rule,
-        )
-      );
+          'empty',
+        ),
+        new ScoutTreeItem(
+          '点击标题栏 🔍 按钮开始扫描',
+          vscode.TreeItemCollapsibleState.None,
+          'info',
+        ),
+        new ScoutTreeItem(
+          '支持 CSS / SCSS / Vue / React',
+          vscode.TreeItemCollapsibleState.None,
+          'info',
+        ),
+      ];
     }
 
+    // Group unused rules by file path
     const fileMap = new Map<string, UnusedRule[]>();
     for (const rule of this.unusedRules) {
       const existing = fileMap.get(rule.filePath) || [];
@@ -57,7 +63,7 @@ export class StyleScoutProvider implements vscode.TreeDataProvider<ScoutTreeItem
       const fileName = filePath.split(/[/\\]/).pop() || filePath;
       const item = new ScoutTreeItem(
         `${fileName} (${rules.length})`,
-        vscode.TreeItemCollapsibleState.Collapsed,
+        vscode.TreeItemCollapsibleState.Expanded,
         'file',
       );
       item.resourceUri = vscode.Uri.file(filePath);
@@ -70,11 +76,8 @@ export class StyleScoutProvider implements vscode.TreeDataProvider<ScoutTreeItem
   }
 
   private getRuleItems(filePath: string): ScoutTreeItem[] {
-    const fileName = filePath.split(/[/\\]/).pop() || '';
-    const rules = this.unusedRules.filter(r => {
-      const ruleFileName = r.filePath.split(/[/\\]/).pop() || '';
-      return ruleFileName === fileName || r.filePath === filePath;
-    });
+    // Filter rules by exact file path (fixes the previous filename-only matching bug)
+    const rules = this.unusedRules.filter(r => r.filePath === filePath);
 
     return rules.map(rule =>
       new ScoutTreeItem(
@@ -82,7 +85,7 @@ export class StyleScoutProvider implements vscode.TreeDataProvider<ScoutTreeItem
         vscode.TreeItemCollapsibleState.None,
         'rule',
         rule,
-      )
+      ),
     );
   }
 }
@@ -103,16 +106,18 @@ export class ScoutTreeItem extends vscode.TreeItem {
 
     if (contextValue === 'rule' && rule) {
       this.iconPath = new vscode.ThemeIcon('trash', new vscode.ThemeColor('errorForeground'));
-      this.tooltip = `${rule.selector}\n文件: ${rule.filePath}\n行: ${rule.line}`;
+      this.tooltip = `${rule.selector}\n文件: ${rule.filePath}\n行: ${rule.line} - ${rule.endLine}`;
       this.command = {
         command: 'styleScout.goToRule',
         title: '跳转到规则',
         arguments: [rule],
       };
     } else if (contextValue === 'file') {
-      this.iconPath = vscode.ThemeIcon.File;
+      // Let VS Code use the resourceUri to determine the file icon
+      // (don't set iconPath, so the file icon theme is used)
     } else if (contextValue === 'empty') {
       this.iconPath = new vscode.ThemeIcon('check', new vscode.ThemeColor('charts.green'));
     }
+    // 'info' contextValue: no icon (plain informational text)
   }
 }

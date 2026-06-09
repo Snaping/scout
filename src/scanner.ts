@@ -230,10 +230,6 @@ export class ProjectScanner {
       return true;
     }
 
-    if (this.globalDynamicClasses.size > 0) {
-      return false;
-    }
-
     return false;
   }
 
