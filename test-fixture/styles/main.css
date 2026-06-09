@@ -1,0 +1,35 @@
+.used-class {
+  color: red;
+}
+
+.unused-class {
+  background: blue;
+}
+
+.another-used {
+  font-size: 14px;
+}
+
+.another-unused {
+  margin: 10px;
+}
+
+#used-id {
+  padding: 5px;
+}
+
+#unused-id {
+  border: 1px solid;
+}
+
+.nested-used .child-used {
+  display: flex;
+}
+
+.nested-unused .child-unused {
+  display: grid;
+}
+
+:root {
+  --main-color: #333;
+}

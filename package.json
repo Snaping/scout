@@ -1,0 +1,135 @@
+{
+  "name": "style-scout",
+  "displayName": "Style Scout - CSS Dead Code Detector",
+  "description": "智能 CSS 无用代码检测器，递归扫描项目，检测未使用的 CSS 选择器，支持可视化展示与一键清理",
+  "version": "1.0.0",
+  "publisher": "style-scout",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters"
+  ],
+  "keywords": [
+    "css",
+    "scss",
+    "dead code",
+    "unused selectors",
+    "vue",
+    "react"
+  ],
+  "activationEvents": [
+    "onCommand:styleScout.scan",
+    "onView:styleScoutPanel"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "styleScout.scan",
+        "title": "Style Scout: 扫描未使用样式"
+      },
+      {
+        "command": "styleScout.fixAll",
+        "title": "Style Scout: 一键清理所有未使用规则"
+      },
+      {
+        "command": "styleScout.fixSelected",
+        "title": "Style Scout: 清理选中的未使用规则"
+      },
+      {
+        "command": "styleScout.refresh",
+        "title": "Style Scout: 刷新扫描结果"
+      },
+      {
+        "command": "styleScout.goToRule",
+        "title": "Style Scout: 跳转到规则位置"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "styleScoutContainer",
+          "title": "Style Scout",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "styleScoutContainer": [
+        {
+          "id": "styleScoutPanel",
+          "name": "未使用样式",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "menus": {
+      "view/item/context": [
+        {
+          "command": "styleScout.fixSelected",
+          "when": "view == styleScoutPanel && viewItem == rule",
+          "group": "inline"
+        },
+        {
+          "command": "styleScout.goToRule",
+          "when": "view == styleScoutPanel && viewItem == rule",
+          "group": "inline"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Style Scout",
+      "properties": {
+        "styleScout.ignorePatterns": {
+          "type": "array",
+          "default": [],
+          "description": "要忽略的选择器模式（正则表达式），匹配的选择器不会被标记为未使用"
+        },
+        "styleScout.ignoreFiles": {
+          "type": "array",
+          "default": [],
+          "description": "要忽略的文件模式（glob），这些文件中的样式不会被检测"
+        },
+        "styleScout.scanDirectories": {
+          "type": "array",
+          "default": [],
+          "description": "自定义扫描目录（相对于工作区根目录），留空则扫描整个工作区"
+        },
+        "styleScout.enableBackup": {
+          "type": "boolean",
+          "default": true,
+          "description": "清理前是否创建备份文件（.bak）"
+        },
+        "styleScout.frameworks": {
+          "type": "array",
+          "default": ["vue", "react"],
+          "description": "项目使用的框架，用于优化类名提取策略",
+          "items": {
+            "type": "string",
+            "enum": ["vue", "react", "vanilla"]
+          }
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts",
+    "verify": "node ./out/verify.js",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.11.0",
+    "@types/glob": "^8.1.0",
+    "typescript": "^5.3.3",
+    "eslint": "^8.56.0",
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0",
+    "glob": "^10.3.10"
+  }
+}
